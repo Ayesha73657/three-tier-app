@@ -1,0 +1,117 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Task Manager</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 650px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f4f7fb;
+    }
+    h1 { color: #243b53; }
+    form { display: flex; gap: 10px; }
+    input {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    button {
+      padding: 12px;
+      cursor: pointer;
+      border: 0;
+      border-radius: 6px;
+      background: #1769aa;
+      color: white;
+    }
+    li {
+      background: white;
+      margin: 10px 0;
+      padding: 12px;
+      border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    #status { color: #555; }
+  </style>
+</head>
+<body>
+  <h1>Task Manager</h1>
+  <p>Three-tier application running on Kubernetes.</p>
+
+  <form id="task-form">
+    <input id="task-title" placeholder="Enter a task" required>
+    <button type="submit">Add Task</button>
+  </form>
+
+  <p id="status">Loading tasks...</p>
+  <ul id="tasks"></ul>
+
+  <script>
+    const list = document.getElementById("tasks");
+    const status = document.getElementById("status");
+    const form = document.getElementById("task-form");
+    const input = document.getElementById("task-title");
+
+    async function loadTasks() {
+      try {
+        const response = await fetch("/api/tasks");
+        if (!response.ok) throw new Error("Could not load tasks");
+
+        const tasks = await response.json();
+        list.replaceChildren();
+
+        tasks.forEach(task => {
+          const li = document.createElement("li");
+          const title = document.createElement("span");
+          const remove = document.createElement("button");
+
+          title.textContent = task.title;
+          remove.textContent = "Delete";
+          remove.onclick = async () => {
+            const result = await fetch(`/api/tasks/${task.id}`, {
+              method: "DELETE"
+            });
+            if (result.ok) loadTasks();
+            else status.textContent = "Could not delete task";
+          };
+
+          li.append(title, remove);
+          list.appendChild(li);
+        });
+
+        status.textContent = `${tasks.length} task(s)`;
+      } catch (error) {
+        status.textContent = "API unavailable. Check backend and database.";
+      }
+    }
+
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+
+      try {
+        const response = await fetch("/api/tasks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: input.value.trim() })
+        });
+
+        if (!response.ok) throw new Error("Could not create task");
+
+        input.value = "";
+        await loadTasks();
+      } catch (error) {
+        status.textContent = "Could not save task. Check the API.";
+      }
+    });
+
+    loadTasks();
+  </script>
+</body>
+</html>
